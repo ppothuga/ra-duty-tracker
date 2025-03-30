@@ -6,7 +6,7 @@ const Calendar = () => {
   const [newDuty, setNewDuty] = useState({
     raName: '',
     date: '',
-    shift: 'evening',
+    shift: 'Secondary',
     notes: ''
   });
   const [editingDuty, setEditingDuty] = useState(null);
@@ -17,10 +17,10 @@ const Calendar = () => {
   // Load sample data for demonstration
   useEffect(() => {
     const sampleDuties = [
-      { id: 1, raName: 'Alex Smith', date: '2025-03-28', shift: 'evening', notes: 'Main entrance duty' },
-      { id: 2, raName: 'Jordan Lee', date: '2025-03-29', shift: 'overnight', notes: 'Weekend patrol' },
-      { id: 3, raName: 'Taylor Wong', date: '2025-03-30', shift: 'morning', notes: 'Mail room coverage' },
-      { id: 4, raName: 'Casey Johnson', date: '2025-04-01', shift: 'evening', notes: 'Front desk' }
+      { id: 1, raName: 'Alex Smith', date: '2025-03-28', shift: 'Secondary', notes: 'Main entrance duty' },
+      { id: 2, raName: 'Jordan Lee', date: '2025-03-29', shift: 'Tertiary', notes: 'Weekend patrol' },
+      { id: 3, raName: 'Taylor Wong', date: '2025-03-30', shift: 'Primary', notes: 'Mail room coverage' },
+      { id: 4, raName: 'Casey Johnson', date: '2025-04-01', shift: 'Secondary', notes: 'Front desk' }
     ];
     setDuties(sampleDuties);
   }, []);
@@ -60,7 +60,7 @@ const Calendar = () => {
     setNewDuty({
       raName: '',
       date: '',
-      shift: 'evening',
+      shift: 'Secondary',
       notes: ''
     });
   };
@@ -178,9 +178,9 @@ const Calendar = () => {
             value={newDuty.shift}
             onChange={handleInputChange}
           >
-            <option value="morning">Morning</option>
-            <option value="evening">Evening</option>
-            <option value="overnight">Overnight</option>
+            <option value="Primary">Primary</option>
+            <option value="Secondary">Secondary</option>
+            <option value="Tertiary">Tertiary</option>
           </select>
         </div>
         
@@ -245,9 +245,9 @@ const Calendar = () => {
                         value={editingDuty.shift}
                         onChange={handleEditChange}
                       >
-                        <option value="morning">Morning</option>
-                        <option value="evening">Evening</option>
-                        <option value="overnight">Overnight</option>
+                        <option value="Primary">Primary</option>
+                        <option value="Secondary">Secondary</option>
+                        <option value="Tertiary">Tertiary</option>
                       </select>
                     </td>
                     <td>
