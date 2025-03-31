@@ -1,5 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import './Calendar.css';
+import axios from 'axios';
+
+const API_BASE_URL = 'http://127.0.0.1:5001/api';
 
 const Calendar = () => {
   const [duties, setDuties] = useState([]);
@@ -14,19 +17,35 @@ const Calendar = () => {
   const [currentMonth, setCurrentMonth] = useState(new Date());
   const [showAddForm, setShowAddForm] = useState(false);
   const [selectedDay, setSelectedDay] = useState(null);
-  const [viewMode, setViewMode] = useState('calendar'); // 'calendar' or 'list'
+  const [viewMode, setViewMode] = useState('calendar');
   const [dayDetailView, setDayDetailView] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
 
-  // Load sample data for demonstration
+  // Fetch duties from the API
   useEffect(() => {
-    const sampleDuties = [
-      { id: 1, raName: 'Alex Smith', date: '2025-03-28', shift: 'Secondary', notes: 'Main entrance duty' },
-      { id: 2, raName: 'Jordan Lee', date: '2025-03-29', shift: 'Tertiary', notes: 'Weekend patrol' },
-      { id: 3, raName: 'Taylor Wong', date: '2025-03-30', shift: 'Primary', notes: 'Mail room coverage' },
-      { id: 4, raName: 'Casey Johnson', date: '2025-04-01', shift: 'Secondary', notes: 'Front desk' }
-    ];
-    setDuties(sampleDuties);
-  }, []);
+    fetchDuties();
+  }, [filterRA]);
+
+  const fetchDuties = async () => {
+    try {
+      setLoading(true);
+      let url = `${API_BASE_URL}/duties`;
+      
+      if (filterRA) {
+        url += `?ra=${filterRA}`;
+      }
+      
+      const response = await axios.get(url);
+      setDuties(response.data);
+      setError(null);
+    } catch (err) {
+      console.error('Error fetching duties:', err);
+      setError('Failed to load duties. Please try again later.');
+    } finally {
+      setLoading(false);
+    }
+  };
 
   // Handle input changes for new duty
   const handleInputChange = (e) => {
@@ -47,31 +66,54 @@ const Calendar = () => {
   };
 
   // Add new duty
-  const addDuty = (e) => {
+  const addDuty = async (e) => {
     e.preventDefault();
     if (!newDuty.raName || !newDuty.date) {
       alert('RA name and date are required!');
       return;
     }
     
-    const duty = {
-      ...newDuty,
-      id: Date.now() // simple id generation
-    };
-    
-    setDuties([...duties, duty]);
-    setNewDuty({
-      raName: '',
-      date: '',
-      shift: 'Secondary',
-      notes: ''
-    });
-    setShowAddForm(false);
+    try {
+      // Convert from camelCase to snake_case for the API
+      const dutyForApi = {
+        ra_name: newDuty.raName,
+        date: newDuty.date,
+        shift: newDuty.shift,
+        notes: newDuty.notes
+      };
+      
+      const response = await axios.post(`${API_BASE_URL}/duties`, dutyForApi);
+      
+      // Update local state with new duty including the ID from server
+      const addedDuty = {
+        ra_name: newDuty.raName,
+        date: newDuty.date,
+        shift: newDuty.shift,
+        notes: newDuty.notes,
+        id: response.data.id
+      };
+      
+      setDuties([...duties, addedDuty]);
+      setNewDuty({
+        raName: '',
+        date: '',
+        shift: 'Secondary',
+        notes: ''
+      });
+      setShowAddForm(false);
+    } catch (err) {
+      console.error('Error adding duty:', err);
+      alert('Failed to add duty. Please try again.');
+    }
   };
 
   // Start editing a duty
   const startEdit = (duty) => {
-    setEditingDuty({ ...duty });
+    // Convert from snake_case to camelCase for the form
+    setEditingDuty({
+      ...duty,
+      raName: duty.ra_name
+    });
   };
 
   // Cancel editing
@@ -80,29 +122,76 @@ const Calendar = () => {
   };
 
   // Save edited duty
-  const saveEdit = () => {
-    if (!editingDuty.raName || !editingDuty.date) {
-      alert('RA name and date are required!');
+  const saveEdit = async () => {
+    if (!editingDuty.raName && !editingDuty.ra_name) {
+      alert('RA name is required!');
       return;
     }
     
-    setDuties(duties.map(duty => 
-      duty.id === editingDuty.id ? editingDuty : duty
-    ));
+    if (!editingDuty.date) {
+      alert('Date is required!');
+      return;
+    }
     
-    setEditingDuty(null);
-  };
-
-  // Delete a duty
-  const deleteDuty = (id) => {
-    if (window.confirm('Are you sure you want to delete this duty?')) {
-      setDuties(duties.filter(duty => duty.id !== id));
-      // Close day detail view if needed
+    try {
+      // Convert from mixed case to snake_case for the API
+      const dutyForApi = {
+        ra_name: editingDuty.raName || editingDuty.ra_name,
+        date: editingDuty.date,
+        shift: editingDuty.shift,
+        notes: editingDuty.notes
+      };
+      
+      await axios.put(`${API_BASE_URL}/duties/${editingDuty.id}`, dutyForApi);
+      
+      // Update local state
+      const updatedDuty = {
+        id: editingDuty.id,
+        ra_name: editingDuty.raName || editingDuty.ra_name,
+        date: editingDuty.date,
+        shift: editingDuty.shift,
+        notes: editingDuty.notes
+      };
+      
+      setDuties(duties.map(duty => 
+        duty.id === editingDuty.id ? updatedDuty : duty
+      ));
+      
+      setEditingDuty(null);
+      
+      // Refresh day detail view if active
       if (dayDetailView) {
         const dayDuties = getDutiesForDay(dayDetailView.day);
         if (dayDuties.length === 0) {
           setDayDetailView(null);
         }
+      }
+    } catch (err) {
+      console.error('Error updating duty:', err);
+      alert('Failed to update duty. Please try again.');
+    }
+  };
+
+  // Delete a duty
+  const deleteDuty = async (id) => {
+    if (window.confirm('Are you sure you want to delete this duty?')) {
+      try {
+        await axios.delete(`${API_BASE_URL}/duties/${id}`);
+        
+        // Update local state
+        setDuties(duties.filter(duty => duty.id !== id));
+        
+        // Close day detail view if needed
+        if (dayDetailView) {
+          const updatedDuties = duties.filter(duty => duty.id !== id);
+          const remainingDayDuties = getDutiesForDay(dayDetailView.day, updatedDuties);
+          if (remainingDayDuties.length === 0) {
+            setDayDetailView(null);
+          }
+        }
+      } catch (err) {
+        console.error('Error deleting duty:', err);
+        alert('Failed to delete duty. Please try again.');
       }
     }
   };
@@ -136,21 +225,19 @@ const Calendar = () => {
   const getFilteredDuties = () => {
     if (!filterRA) return duties;
     return duties.filter(duty => 
-      duty.raName.toLowerCase().includes(filterRA.toLowerCase())
+      duty.ra_name.toLowerCase().includes(filterRA.toLowerCase())
     );
   };
 
   // Get duties for a specific day
-  const getDutiesForDay = (day) => {
+  const getDutiesForDay = (day, dutyList = duties) => {
     const year = currentMonth.getFullYear();
-    const month = currentMonth.getMonth();
+    const month = currentMonth.getMonth() + 1; // JavaScript months are 0-indexed, database uses 1-indexed
+    const formattedMonth = String(month).padStart(2, '0');
+    const formattedDay = String(day).padStart(2, '0');
+    const dateStr = `${year}-${formattedMonth}-${formattedDay}`;
     
-    return getFilteredDuties().filter(duty => {
-      const dutyDate = new Date(duty.date);
-      return dutyDate.getFullYear() === year && 
-             dutyDate.getMonth() === month && 
-             dutyDate.getDate() === day;
-    });
+    return dutyList.filter(duty => duty.date === dateStr);
   };
 
   // Handle day click
@@ -184,7 +271,7 @@ const Calendar = () => {
   // Handle duty click
   const handleDutyClick = (duty, e) => {
     e.stopPropagation(); // Prevent triggering day click
-    setEditingDuty({ ...duty });
+    startEdit(duty);
   };
 
   // Add new duty for specific day
@@ -236,10 +323,10 @@ const Calendar = () => {
             <div 
               key={duty.id} 
               className={`duty-tag ${duty.shift.toLowerCase()}`}
-              title={`${duty.raName} - ${duty.shift} - ${duty.notes}`}
+              title={`${duty.ra_name} - ${duty.shift} - ${duty.notes}`}
               onClick={(e) => handleDutyClick(duty, e)}
             >
-              {duty.raName}
+              {duty.ra_name}
             </div>
           ))}
         </div>
@@ -276,7 +363,7 @@ const Calendar = () => {
     );
   };
 
-  // Render list view (original implementation)
+  // Render list view
   const renderListView = () => {
     const filteredDuties = getFilteredDuties();
     
@@ -302,67 +389,74 @@ const Calendar = () => {
             </tr>
           </thead>
           <tbody>
-            {filteredDuties.map(duty => (
-              <tr key={duty.id}>
-                {editingDuty && editingDuty.id === duty.id ? (
-                  // Edit mode
-                  <>
-                    <td>
-                      <input
-                        type="text"
-                        name="raName"
-                        value={editingDuty.raName}
-                        onChange={handleEditChange}
-                        required
-                      />
-                    </td>
-                    <td>
-                      <input
-                        type="date"
-                        name="date"
-                        value={editingDuty.date}
-                        onChange={handleEditChange}
-                        required
-                      />
-                    </td>
-                    <td>
-                      <select
-                        name="shift"
-                        value={editingDuty.shift}
-                        onChange={handleEditChange}
-                      >
-                        <option value="Primary">Primary</option>
-                        <option value="Secondary">Secondary</option>
-                        <option value="Tertiary">Tertiary</option>
-                      </select>
-                    </td>
-                    <td>
-                      <textarea
-                        name="notes"
-                        value={editingDuty.notes}
-                        onChange={handleEditChange}
-                      ></textarea>
-                    </td>
-                    <td>
-                      <button onClick={saveEdit} className="btn-save">Save</button>
-                      <button onClick={cancelEdit} className="btn-cancel">Cancel</button>
-                    </td>
-                  </>
-                ) : (
-                  // View mode
-                  <>
-                    <td>{duty.raName}</td>
-                    <td>{new Date(duty.date).toLocaleDateString()}</td>
-                    <td>{duty.shift}</td>
-                    <td>{duty.notes}</td>
-                    <td>
-                      <button onClick={() => startEdit(duty)} className="btn-edit">Edit</button>
-                      <button onClick={() => deleteDuty(duty.id)} className="btn-delete">Delete</button>
-                    </td>
-                  </>
-                )}
+            {filteredDuties.length === 0 ? (
+              <tr>
+                <td colSpan="5" style={{textAlign: 'center', padding: '20px'}}>
+                  No duties found. {filterRA ? 'Try adjusting your filter.' : 'Click the + button to add a duty.'}
+                </td>
               </tr>
-            ))}
+            ) : (
+              filteredDuties.map(duty => (
+                <tr key={duty.id}>
+                  {editingDuty && editingDuty.id === duty.id ? (
+                    <>
+                      <td>
+                        <input
+                          type="text"
+                          name="raName"
+                          value={editingDuty.raName || editingDuty.ra_name}
+                          onChange={handleEditChange}
+                          required
+                        />
+                      </td>
+                      <td>
+                        <input
+                          type="date"
+                          name="date"
+                          value={editingDuty.date}
+                          onChange={handleEditChange}
+                          required
+                        />
+                      </td>
+                      <td>
+                        <select
+                          name="shift"
+                          value={editingDuty.shift}
+                          onChange={handleEditChange}
+                        >
+                          <option value="Primary">Primary</option>
+                          <option value="Secondary">Secondary</option>
+                          <option value="Weekend">Weekend</option>
+                        </select>
+                      </td>
+                      <td>
+                        <input
+                          type="text"
+                          name="notes"
+                          value={editingDuty.notes || ''}
+                          onChange={handleEditChange}
+                        />
+                      </td>
+                      <td>
+                        <button onClick={saveEdit} className="save-btn">Save</button>
+                        <button onClick={cancelEdit} className="cancel-btn">Cancel</button>
+                      </td>
+                    </>
+                  ) : (
+                    <>
+                      <td>{duty.ra_name}</td>
+                      <td>{duty.date}</td>
+                      <td>{duty.shift}</td>
+                      <td>{duty.notes}</td>
+                      <td>
+                        <button onClick={() => startEdit(duty)} className="edit-btn">Edit</button>
+                        <button onClick={() => deleteDuty(duty.id)} className="delete-btn">Delete</button>
+                      </td>
+                    </>
+                  )}
+                </tr>
+              ))
+            )}
           </tbody>
         </table>
       </div>
@@ -374,204 +468,198 @@ const Calendar = () => {
     if (!dayDetailView) return null;
     
     const { day, month, year } = dayDetailView;
-    const dateStr = new Date(year, month, day).toLocaleDateString('en-US', {
-      weekday: 'long',
-      year: 'numeric',
-      month: 'long',
-      day: 'numeric'
+    const date = new Date(year, month, day);
+    const formattedDate = date.toLocaleDateString('en-US', { 
+      weekday: 'long', 
+      year: 'numeric', 
+      month: 'long', 
+      day: 'numeric' 
     });
     
-    const dailyDuties = getDutiesForDay(day);
+    const dayDuties = getDutiesForDay(day);
     
     return (
-      <div className="modal-backdrop" onClick={() => setDayDetailView(null)}>
-        <div className="day-detail-modal" onClick={(e) => e.stopPropagation()}>
-          <div className="modal-header">
-            <h3>{dateStr}</h3>
-            <button className="close-btn" onClick={() => setDayDetailView(null)}>×</button>
-          </div>
-          <div className="day-detail-content">
-            <h4>Duties for this day</h4>
-            {dailyDuties.length === 0 ? (
-              <p>No duties scheduled for this day.</p>
-            ) : (
-              <div className="day-duties-list">
-                {dailyDuties.map(duty => (
-                  <div key={duty.id} className="day-duty-item">
-                    <div className={`duty-indicator ${duty.shift.toLowerCase()}`}></div>
-                    <div className="duty-details">
-                      <p className="duty-name"><strong>{duty.raName}</strong> - {duty.shift}</p>
-                      <p className="duty-notes">{duty.notes}</p>
-                    </div>
-                    <div className="duty-actions">
-                      <button onClick={() => startEdit(duty)} className="btn-edit">Edit</button>
-                      <button onClick={() => deleteDuty(duty.id)} className="btn-delete">Delete</button>
-                    </div>
+      <div className="day-detail-container">
+        <div className="day-detail-header">
+          <h3>{formattedDate}</h3>
+          <button onClick={() => setDayDetailView(null)} className="close-btn">×</button>
+        </div>
+        <div className="day-duties">
+          {dayDuties.map(duty => (
+            <div key={duty.id} className="duty-card">
+              {editingDuty && editingDuty.id === duty.id ? (
+                <div className="duty-edit-form">
+                  <div className="form-group">
+                    <label>RA Name:</label>
+                    <input
+                      type="text"
+                      name="raName"
+                      value={editingDuty.raName || editingDuty.ra_name}
+                      onChange={handleEditChange}
+                      required
+                    />
                   </div>
-                ))}
-              </div>
-            )}
-            <div className="day-detail-actions">
-              <button 
-                onClick={() => handleAddForDay(day)} 
-                className="btn-add"
-              >
-                Add Duty for {month + 1}/{day}
-              </button>
+                  <div className="form-group">
+                    <label>Shift:</label>
+                    <select
+                      name="shift"
+                      value={editingDuty.shift}
+                      onChange={handleEditChange}
+                    >
+                      <option value="Primary">Primary</option>
+                      <option value="Secondary">Secondary</option>
+                      <option value="Weekend">Weekend</option>
+                    </select>
+                  </div>
+                  <div className="form-group">
+                    <label>Notes:</label>
+                    <textarea
+                      name="notes"
+                      value={editingDuty.notes || ''}
+                      onChange={handleEditChange}
+                    />
+                  </div>
+                  <div className="form-actions">
+                    <button onClick={saveEdit} className="save-btn">Save</button>
+                    <button onClick={cancelEdit} className="cancel-btn">Cancel</button>
+                  </div>
+                </div>
+              ) : (
+                <>
+                  <h4>{duty.ra_name}</h4>
+                  <p className="duty-shift">{duty.shift}</p>
+                  {duty.notes && <p className="duty-notes">{duty.notes}</p>}
+                  <div className="duty-actions">
+                    <button onClick={() => startEdit(duty)} className="edit-btn">Edit</button>
+                    <button onClick={() => deleteDuty(duty.id)} className="delete-btn">Delete</button>
+                  </div>
+                </>
+              )}
             </div>
-          </div>
+          ))}
+          <button 
+            onClick={() => handleAddForDay(day)} 
+            className="add-duty-btn"
+          >
+            Add Duty
+          </button>
         </div>
       </div>
     );
   };
 
+  // Render the add duty form
+  const renderAddDutyForm = () => {
+    if (!showAddForm) return null;
+    
+    return (
+      <div className="add-form-container">
+        <div className="add-form-header">
+          <h3>{selectedDay ? `Add Duty for ${currentMonth.toLocaleString('default', { month: 'long' })} ${selectedDay}` : 'Add New Duty'}</h3>
+          <button onClick={() => {
+            setShowAddForm(false);
+            setSelectedDay(null);
+          }} className="close-btn">×</button>
+        </div>
+        <form onSubmit={addDuty}>
+          <div className="form-group">
+            <label>RA Name:</label>
+            <input
+              type="text"
+              name="raName"
+              value={newDuty.raName}
+              onChange={handleInputChange}
+              required
+            />
+          </div>
+          <div className="form-group">
+            <label>Date:</label>
+            <input
+              type="date"
+              name="date"
+              value={newDuty.date}
+              onChange={handleInputChange}
+              required
+            />
+          </div>
+          <div className="form-group">
+            <label>Shift:</label>
+            <select
+              name="shift"
+              value={newDuty.shift}
+              onChange={handleInputChange}
+            >
+              <option value="Primary">Primary</option>
+              <option value="Secondary">Secondary</option>
+              <option value="Weekend">Weekend</option>
+            </select>
+          </div>
+          <div className="form-group">
+            <label>Notes:</label>
+            <textarea
+              name="notes"
+              value={newDuty.notes}
+              onChange={handleInputChange}
+            />
+          </div>
+          <div className="form-actions">
+            <button type="submit" className="submit-btn">Add Duty</button>
+            <button type="button" onClick={() => {
+              setShowAddForm(false);
+              setSelectedDay(null);
+            }} className="cancel-btn">Cancel</button>
+          </div>
+        </form>
+      </div>
+    );
+  };
+
   return (
-    <div className="calendar-container">
+    <div className="calendar-container" onClick={() => setDayDetailView(null)}>
       <h1>RA Duty Calendar</h1>
       
-      {/* Filter controls */}
-      <div className="filter-controls">
-        <input 
-          type="text" 
-          placeholder="Filter by RA name" 
-          value={filterRA} 
+      <div className="controls">
+        <input
+          type="text"
+          placeholder="Filter by RA name..."
+          value={filterRA}
           onChange={(e) => setFilterRA(e.target.value)}
           className="filter-input"
         />
         <button 
-          onClick={() => {setShowAddForm(true); setSelectedDay(null);}}
-          className="btn-add-new"
+          onClick={() => {
+            setShowAddForm(true);
+            setSelectedDay(null);
+          }}
+          className="add-btn"
         >
-          Add New Duty
+          +
         </button>
       </div>
       
-      {/* Main view (calendar or list) */}
-      {viewMode === 'calendar' ? renderCalendar() : renderListView()}
-      
-      {/* Day detail view */}
-      {dayDetailView && renderDayDetailView()}
-      
-      {/* Add new duty form */}
-      {showAddForm && (
-        <div className="modal-backdrop" onClick={() => setShowAddForm(false)}>
-          <div className="duty-form-modal" onClick={(e) => e.stopPropagation()}>
-            <div className="modal-header">
-              <h3>{selectedDay ? `Add Duty for ${currentMonth.toLocaleString('default', { month: 'long' })} ${selectedDay}` : 'Add New Duty'}</h3>
-              <button className="close-btn" onClick={() => setShowAddForm(false)}>×</button>
-            </div>
-            <form onSubmit={addDuty} className="duty-form">
-              <div className="form-group">
-                <label>RA Name:</label>
-                <input
-                  type="text"
-                  name="raName"
-                  value={newDuty.raName}
-                  onChange={handleInputChange}
-                  required
-                />
-              </div>
-              
-              <div className="form-group">
-                <label>Date:</label>
-                <input
-                  type="date"
-                  name="date"
-                  value={newDuty.date}
-                  onChange={handleInputChange}
-                  required
-                />
-              </div>
-              
-              <div className="form-group">
-                <label>Shift:</label>
-                <select
-                  name="shift"
-                  value={newDuty.shift}
-                  onChange={handleInputChange}
-                >
-                  <option value="Primary">Primary</option>
-                  <option value="Secondary">Secondary</option>
-                  <option value="Tertiary">Tertiary</option>
-                </select>
-              </div>
-              
-              <div className="form-group">
-                <label>Notes:</label>
-                <textarea
-                  name="notes"
-                  value={newDuty.notes}
-                  onChange={handleInputChange}
-                ></textarea>
-              </div>
-              
-              <div className="form-buttons">
-                <button type="submit" className="btn-add">Add Duty</button>
-                <button type="button" className="btn-cancel" onClick={() => setShowAddForm(false)}>Cancel</button>
-              </div>
-            </form>
-          </div>
+      {loading ? (
+        <div className="loading">Loading duties...</div>
+      ) : error ? (
+        <div className="error-message">{error}</div>
+      ) : (
+        <div onClick={(e) => e.stopPropagation()}>
+          {viewMode === 'calendar' ? renderCalendar() : renderListView()}
         </div>
       )}
       
-      {/* Edit duty modal */}
-      {editingDuty && (
-        <div className="modal-backdrop" onClick={cancelEdit}>
-          <div className="duty-form-modal" onClick={(e) => e.stopPropagation()}>
-            <div className="modal-header">
-              <h3>Edit Duty</h3>
-              <button className="close-btn" onClick={cancelEdit}>×</button>
-            </div>
-            <form className="duty-form">
-              <div className="form-group">
-                <label>RA Name:</label>
-                <input
-                  type="text"
-                  name="raName"
-                  value={editingDuty.raName}
-                  onChange={handleEditChange}
-                  required
-                />
-              </div>
-              
-              <div className="form-group">
-                <label>Date:</label>
-                <input
-                  type="date"
-                  name="date"
-                  value={editingDuty.date}
-                  onChange={handleEditChange}
-                  required
-                />
-              </div>
-              
-              <div className="form-group">
-                <label>Shift:</label>
-                <select
-                  name="shift"
-                  value={editingDuty.shift}
-                  onChange={handleEditChange}
-                >
-                  <option value="Primary">Primary</option>
-                  <option value="Secondary">Secondary</option>
-                  <option value="Tertiary">Tertiary</option>
-                </select>
-              </div>
-              
-              <div className="form-group">
-                <label>Notes:</label>
-                <textarea
-                  name="notes"
-                  value={editingDuty.notes}
-                  onChange={handleEditChange}
-                ></textarea>
-              </div>
-              
-              <div className="form-buttons">
-                <button type="button" className="btn-save" onClick={saveEdit}>Save Changes</button>
-                <button type="button" className="btn-cancel" onClick={cancelEdit}>Cancel</button>
-              </div>
-            </form>
+      {dayDetailView && (
+        <div className="overlay" onClick={(e) => e.stopPropagation()}>
+          {renderDayDetailView()}
+        </div>
+      )}
+      
+      {showAddForm && (
+        <div className="overlay" onClick={() => {
+          setShowAddForm(false);
+          setSelectedDay(null);
+        }}>
+          <div onClick={(e) => e.stopPropagation()}>
+            {renderAddDutyForm()}
           </div>
         </div>
       )}
