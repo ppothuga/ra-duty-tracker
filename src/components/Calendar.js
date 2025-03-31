@@ -15,6 +15,7 @@ const Calendar = () => {
   const [showAddForm, setShowAddForm] = useState(false);
   const [selectedDay, setSelectedDay] = useState(null);
   const [viewMode, setViewMode] = useState('calendar'); // 'calendar' or 'list'
+  const [dayDetailView, setDayDetailView] = useState(null);
 
   // Load sample data for demonstration
   useEffect(() => {
@@ -96,20 +97,30 @@ const Calendar = () => {
   const deleteDuty = (id) => {
     if (window.confirm('Are you sure you want to delete this duty?')) {
       setDuties(duties.filter(duty => duty.id !== id));
+      // Close day detail view if needed
+      if (dayDetailView) {
+        const dayDuties = getDutiesForDay(dayDetailView.day);
+        if (dayDuties.length === 0) {
+          setDayDetailView(null);
+        }
+      }
     }
   };
 
   // Calendar navigation functions
   const prevMonth = () => {
     setCurrentMonth(new Date(currentMonth.getFullYear(), currentMonth.getMonth() - 1, 1));
+    setDayDetailView(null);
   };
 
   const nextMonth = () => {
     setCurrentMonth(new Date(currentMonth.getFullYear(), currentMonth.getMonth() + 1, 1));
+    setDayDetailView(null);
   };
 
   const goToToday = () => {
     setCurrentMonth(new Date());
+    setDayDetailView(null);
   };
 
   // Generate calendar days
@@ -133,7 +144,6 @@ const Calendar = () => {
   const getDutiesForDay = (day) => {
     const year = currentMonth.getFullYear();
     const month = currentMonth.getMonth();
-    const dateStr = `${year}-${String(month + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
     
     return getFilteredDuties().filter(duty => {
       const dutyDate = new Date(duty.date);
@@ -144,7 +154,41 @@ const Calendar = () => {
   };
 
   // Handle day click
-  const handleDayClick = (day) => {
+  const handleDayClick = (day, e) => {
+    e.stopPropagation(); // Prevent bubbling
+    
+    const dailyDuties = getDutiesForDay(day);
+    
+    if (dailyDuties.length > 0) {
+      // If there are duties for this day, show detail view
+      setDayDetailView({
+        day,
+        month: currentMonth.getMonth(),
+        year: currentMonth.getFullYear()
+      });
+    } else {
+      // If no duties, open add form
+      const year = currentMonth.getFullYear();
+      const month = currentMonth.getMonth() + 1;
+      const formattedDate = `${year}-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+      
+      setSelectedDay(day);
+      setNewDuty({
+        ...newDuty,
+        date: formattedDate
+      });
+      setShowAddForm(true);
+    }
+  };
+
+  // Handle duty click
+  const handleDutyClick = (duty, e) => {
+    e.stopPropagation(); // Prevent triggering day click
+    setEditingDuty({ ...duty });
+  };
+
+  // Add new duty for specific day
+  const handleAddForDay = (day) => {
     const year = currentMonth.getFullYear();
     const month = currentMonth.getMonth() + 1;
     const formattedDate = `${year}-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
@@ -179,13 +223,13 @@ const Calendar = () => {
       const isToday = new Date().getDate() === day && 
                       new Date().getMonth() === month && 
                       new Date().getFullYear() === year;
-      const isSelected = selectedDay === day;
+      const isSelected = (dayDetailView && dayDetailView.day === day) || selectedDay === day;
       
       days.push(
         <div 
           key={`day-${day}`} 
           className={`calendar-day ${isToday ? 'today' : ''} ${isSelected ? 'selected' : ''}`}
-          onClick={() => handleDayClick(day)}
+          onClick={(e) => handleDayClick(day, e)}
         >
           <div className="day-number">{day}</div>
           {dailyDuties.map(duty => (
@@ -193,6 +237,7 @@ const Calendar = () => {
               key={duty.id} 
               className={`duty-tag ${duty.shift.toLowerCase()}`}
               title={`${duty.raName} - ${duty.shift} - ${duty.notes}`}
+              onClick={(e) => handleDutyClick(duty, e)}
             >
               {duty.raName}
             </div>
@@ -324,6 +369,62 @@ const Calendar = () => {
     );
   };
 
+  // Render day detail view
+  const renderDayDetailView = () => {
+    if (!dayDetailView) return null;
+    
+    const { day, month, year } = dayDetailView;
+    const dateStr = new Date(year, month, day).toLocaleDateString('en-US', {
+      weekday: 'long',
+      year: 'numeric',
+      month: 'long',
+      day: 'numeric'
+    });
+    
+    const dailyDuties = getDutiesForDay(day);
+    
+    return (
+      <div className="modal-backdrop" onClick={() => setDayDetailView(null)}>
+        <div className="day-detail-modal" onClick={(e) => e.stopPropagation()}>
+          <div className="modal-header">
+            <h3>{dateStr}</h3>
+            <button className="close-btn" onClick={() => setDayDetailView(null)}>×</button>
+          </div>
+          <div className="day-detail-content">
+            <h4>Duties for this day</h4>
+            {dailyDuties.length === 0 ? (
+              <p>No duties scheduled for this day.</p>
+            ) : (
+              <div className="day-duties-list">
+                {dailyDuties.map(duty => (
+                  <div key={duty.id} className="day-duty-item">
+                    <div className={`duty-indicator ${duty.shift.toLowerCase()}`}></div>
+                    <div className="duty-details">
+                      <p className="duty-name"><strong>{duty.raName}</strong> - {duty.shift}</p>
+                      <p className="duty-notes">{duty.notes}</p>
+                    </div>
+                    <div className="duty-actions">
+                      <button onClick={() => startEdit(duty)} className="btn-edit">Edit</button>
+                      <button onClick={() => deleteDuty(duty.id)} className="btn-delete">Delete</button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+            <div className="day-detail-actions">
+              <button 
+                onClick={() => handleAddForDay(day)} 
+                className="btn-add"
+              >
+                Add Duty for {month + 1}/{day}
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  };
+
   return (
     <div className="calendar-container">
       <h1>RA Duty Calendar</h1>
@@ -348,10 +449,13 @@ const Calendar = () => {
       {/* Main view (calendar or list) */}
       {viewMode === 'calendar' ? renderCalendar() : renderListView()}
       
-      {/* Add/Edit duty form */}
+      {/* Day detail view */}
+      {dayDetailView && renderDayDetailView()}
+      
+      {/* Add new duty form */}
       {showAddForm && (
-        <div className="modal-backdrop">
-          <div className="duty-form-modal">
+        <div className="modal-backdrop" onClick={() => setShowAddForm(false)}>
+          <div className="duty-form-modal" onClick={(e) => e.stopPropagation()}>
             <div className="modal-header">
               <h3>{selectedDay ? `Add Duty for ${currentMonth.toLocaleString('default', { month: 'long' })} ${selectedDay}` : 'Add New Duty'}</h3>
               <button className="close-btn" onClick={() => setShowAddForm(false)}>×</button>
@@ -412,8 +516,8 @@ const Calendar = () => {
       
       {/* Edit duty modal */}
       {editingDuty && (
-        <div className="modal-backdrop">
-          <div className="duty-form-modal">
+        <div className="modal-backdrop" onClick={cancelEdit}>
+          <div className="duty-form-modal" onClick={(e) => e.stopPropagation()}>
             <div className="modal-header">
               <h3>Edit Duty</h3>
               <button className="close-btn" onClick={cancelEdit}>×</button>

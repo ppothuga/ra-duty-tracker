@@ -6,7 +6,7 @@
   font-family: Arial, sans-serif;
 }
 
-h1, h2, h3 {
+h1, h2, h3, h4 {
   color: #333;
 }
 
@@ -141,6 +141,13 @@ h1, h2, h3 {
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+  cursor: pointer;
+  transition: transform 0.2s, box-shadow 0.2s;
+}
+
+.duty-tag:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 2px 4px rgba(0,0,0,0.2);
 }
 
 .duty-tag.primary {
@@ -153,6 +160,87 @@ h1, h2, h3 {
 
 .duty-tag.tertiary {
   background-color: #4CAF50;
+}
+
+/* Day detail view */
+.day-detail-modal {
+  background-color: white;
+  border-radius: 8px;
+  width: 90%;
+  max-width: 600px;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.15);
+  max-height: 90vh;
+  overflow-y: auto;
+}
+
+.day-detail-content {
+  padding: 20px;
+}
+
+.day-duties-list {
+  margin: 15px 0;
+}
+
+.day-duty-item {
+  display: flex;
+  align-items: center;
+  padding: 12px;
+  border: 1px solid #eee;
+  border-radius: 6px;
+  margin-bottom: 10px;
+  transition: background-color 0.2s;
+}
+
+.day-duty-item:hover {
+  background-color: #f9f9f9;
+}
+
+.duty-indicator {
+  width: 12px;
+  height: 50px;
+  border-radius: 3px;
+  margin-right: 15px;
+}
+
+.duty-indicator.primary {
+  background-color: #f44336;
+}
+
+.duty-indicator.secondary {
+  background-color: #2196F3;
+}
+
+.duty-indicator.tertiary {
+  background-color: #4CAF50;
+}
+
+.duty-details {
+  flex: 1;
+}
+
+.duty-name {
+  margin: 0 0 5px 0;
+  font-size: 15px;
+}
+
+.duty-notes {
+  margin: 0;
+  color: #666;
+  font-size: 13px;
+}
+
+.duty-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+
+.day-detail-actions {
+  margin-top: 20px;
+  padding-top: 15px;
+  border-top: 1px solid #eee;
+  display: flex;
+  justify-content: flex-end;
 }
 
 /* Modal and form styling */
@@ -313,10 +401,40 @@ h1, h2, h3 {
 }
 
 .btn-cancel {
-  background-color: #9e9e9e;
-  color: white;
+  background-color: #ccc;
+  color: #333;
 }
 
 .btn-cancel:hover {
-  background-color: #757575;
+  background-color: #bbb;
+}
+
+/* Responsive adjustments */
+@media (max-width: 768px) {
+  .filter-controls {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 10px;
+  }
+  
+  .filter-input {
+    width: 100%;
+  }
+  
+  .calendar-header {
+    flex-direction: column;
+    gap: 10px;
+  }
+  
+  .calendar-day {
+    min-height: 80px;
+  }
+  
+  .weekdays {
+    font-size: 12px;
+  }
+  
+  .duty-form-modal, .day-detail-modal {
+    width: 95%;
+  }
 }
