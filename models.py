@@ -1,6 +1,7 @@
 from flask_sqlalchemy import SQLAlchemy
 from datetime import datetime
 
+# Initialize SQLAlchemy instance
 db = SQLAlchemy()
 
 class RA(db.Model):
@@ -25,7 +26,6 @@ class RA(db.Model):
     def find_by_name(cls, name):
         """Find an RA by name (case-insensitive)"""
         return cls.query.filter(cls.name.ilike(name.strip())).first()
-
 
 class Duty(db.Model):
     __tablename__ = 'duties'
