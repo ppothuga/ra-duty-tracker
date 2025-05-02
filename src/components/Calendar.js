@@ -101,6 +101,7 @@ const Calendar = () => {
         notes: ''
       });
       setShowAddForm(false);
+      setSelectedDay(null);
     } catch (err) {
       console.error('Error adding duty:', err);
       alert('Failed to add duty. Please try again.');
@@ -200,16 +201,19 @@ const Calendar = () => {
   const prevMonth = () => {
     setCurrentMonth(new Date(currentMonth.getFullYear(), currentMonth.getMonth() - 1, 1));
     setDayDetailView(null);
+    setSelectedDay(null);
   };
 
   const nextMonth = () => {
     setCurrentMonth(new Date(currentMonth.getFullYear(), currentMonth.getMonth() + 1, 1));
     setDayDetailView(null);
+    setSelectedDay(null);
   };
 
   const goToToday = () => {
     setCurrentMonth(new Date());
     setDayDetailView(null);
+    setSelectedDay(null);
   };
 
   // Generate calendar days
@@ -253,6 +257,7 @@ const Calendar = () => {
         month: currentMonth.getMonth(),
         year: currentMonth.getFullYear()
       });
+      setSelectedDay(day);
     } else {
       // If no duties, open add form
       const year = currentMonth.getFullYear();
@@ -288,6 +293,20 @@ const Calendar = () => {
     setShowAddForm(true);
   };
 
+  // Get shift class name
+  const getShiftClassName = (shift) => {
+    switch(shift.toLowerCase()) {
+      case 'primary':
+        return 'primary';
+      case 'secondary': 
+        return 'secondary';
+      case 'tertiary':
+        return 'tertiary';
+      default:
+        return 'primary';
+    }
+  };
+
   // Render calendar
   const renderCalendar = () => {
     const year = currentMonth.getFullYear();
@@ -310,7 +329,9 @@ const Calendar = () => {
       const isToday = new Date().getDate() === day && 
                       new Date().getMonth() === month && 
                       new Date().getFullYear() === year;
-      const isSelected = (dayDetailView && dayDetailView.day === day) || selectedDay === day;
+      const isSelected = (selectedDay === day && 
+                         currentMonth.getMonth() === month && 
+                         currentMonth.getFullYear() === year);
       
       days.push(
         <div 
@@ -322,7 +343,7 @@ const Calendar = () => {
           {dailyDuties.map(duty => (
             <div 
               key={duty.id} 
-              className={`duty-tag ${duty.shift.toLowerCase()}`}
+              className={`duty-tag ${getShiftClassName(duty.shift)}`}
               title={`${duty.ra_name} - ${duty.shift} - ${duty.notes}`}
               onClick={(e) => handleDutyClick(duty, e)}
             >
@@ -401,56 +422,76 @@ const Calendar = () => {
                   {editingDuty && editingDuty.id === duty.id ? (
                     <>
                       <td>
-                        <input
-                          type="text"
-                          name="raName"
-                          value={editingDuty.raName || editingDuty.ra_name}
-                          onChange={handleEditChange}
-                          required
-                        />
+                        <div className="form-group">
+                          <input
+                            type="text"
+                            name="raName"
+                            value={editingDuty.raName || editingDuty.ra_name}
+                            onChange={handleEditChange}
+                            required
+                            className="filter-input"
+                          />
+                        </div>
                       </td>
                       <td>
-                        <input
-                          type="date"
-                          name="date"
-                          value={editingDuty.date}
-                          onChange={handleEditChange}
-                          required
-                        />
+                        <div className="form-group">
+                          <input
+                            type="date"
+                            name="date"
+                            value={editingDuty.date}
+                            onChange={handleEditChange}
+                            required
+                            className="filter-input"
+                          />
+                        </div>
                       </td>
                       <td>
-                        <select
-                          name="shift"
-                          value={editingDuty.shift}
-                          onChange={handleEditChange}
-                        >
-                          <option value="Primary">Primary</option>
-                          <option value="Secondary">Secondary</option>
-                          <option value="Weekend">Weekend</option>
-                        </select>
+                        <div className="form-group">
+                          <select
+                            name="shift"
+                            value={editingDuty.shift}
+                            onChange={handleEditChange}
+                            className="filter-input"
+                          >
+                            <option value="Primary">Primary</option>
+                            <option value="Secondary">Secondary</option>
+                            <option value="Tertiary">Tertiary</option>
+                          </select>
+                        </div>
                       </td>
                       <td>
-                        <input
-                          type="text"
-                          name="notes"
-                          value={editingDuty.notes || ''}
-                          onChange={handleEditChange}
-                        />
+                        <div className="form-group">
+                          <input
+                            type="text"
+                            name="notes"
+                            value={editingDuty.notes || ''}
+                            onChange={handleEditChange}
+                            className="filter-input"
+                          />
+                        </div>
                       </td>
                       <td>
-                        <button onClick={saveEdit} className="save-btn">Save</button>
-                        <button onClick={cancelEdit} className="cancel-btn">Cancel</button>
+                        <div className="duty-actions">
+                          <button onClick={saveEdit} className="save-btn">Save</button>
+                          <button onClick={cancelEdit} className="cancel-btn">Cancel</button>
+                        </div>
                       </td>
                     </>
                   ) : (
                     <>
                       <td>{duty.ra_name}</td>
                       <td>{duty.date}</td>
-                      <td>{duty.shift}</td>
+                      <td>
+                        <span className={`duty-shift ${getShiftClassName(duty.shift)}`}>
+                          {duty.shift}
+                        </span>
+                      </td>
                       <td>{duty.notes}</td>
                       <td>
-                        <button onClick={() => startEdit(duty)} className="edit-btn">Edit</button>
-                        <button onClick={() => deleteDuty(duty.id)} className="delete-btn">Delete</button>
+                        <div className="duty-actions">
+                          <button onClick={() => startEdit(duty)} className="edit-btn">Edit</button>
+                          <button onClick={() => deleteDuty(duty.id)} className="delete-btn">Delete</button>
+                        </div>
                       </td>
                     </>
                   )}
@@ -482,7 +523,10 @@ const Calendar = () => {
       <div className="day-detail-container">
         <div className="day-detail-header">
           <h3>{formattedDate}</h3>
-          <button onClick={() => setDayDetailView(null)} className="close-btn">×</button>
+          <button onClick={() => {
+            setDayDetailView(null);
+            setSelectedDay(null);
+          }} className="close-btn">×</button>
         </div>
         <div className="day-duties">
           {dayDuties.map(duty => (
@@ -508,7 +552,7 @@ const Calendar = () => {
                     >
                       <option value="Primary">Primary</option>
                       <option value="Secondary">Secondary</option>
-                      <option value="Weekend">Weekend</option>
+                      <option value="Tertiary">Tertiary</option>
                     </select>
                   </div>
                   <div className="form-group">
@@ -519,7 +563,7 @@ const Calendar = () => {
                       onChange={handleEditChange}
                     />
                   </div>
-                  <div className="form-actions">
+                  <div className="duty-actions">
                     <button onClick={saveEdit} className="save-btn">Save</button>
                     <button onClick={cancelEdit} className="cancel-btn">Cancel</button>
                   </div>
@@ -527,8 +571,8 @@ const Calendar = () => {
               ) : (
                 <>
                   <h4>{duty.ra_name}</h4>
-                  <p className="duty-shift">{duty.shift}</p>
-                  {duty.notes && <p className="duty-notes">{duty.notes}</p>}
+                  <div className={`duty-shift ${getShiftClassName(duty.shift)}`}>{duty.shift}</div>
+                  {duty.notes && <div className="duty-notes">{duty.notes}</div>}
                   <div className="duty-actions">
                     <button onClick={() => startEdit(duty)} className="edit-btn">Edit</button>
                     <button onClick={() => deleteDuty(duty.id)} className="delete-btn">Delete</button>
@@ -591,7 +635,7 @@ const Calendar = () => {
             >
               <option value="Primary">Primary</option>
               <option value="Secondary">Secondary</option>
-              <option value="Weekend">Weekend</option>
+              <option value="Tertiary">Tertiary</option>
             </select>
           </div>
           <div className="form-group">
@@ -614,8 +658,27 @@ const Calendar = () => {
     );
   };
 
+  // Render loading state
+  const renderLoading = () => {
+    return (
+      <div className="loading">
+        <div>Loading duties...</div>
+      </div>
+    );
+  };
+
+  // Render error state
+  const renderError = () => {
+    return (
+      <div className="error-message">{error}</div>
+    );
+  };
+
   return (
-    <div className="calendar-container" onClick={() => setDayDetailView(null)}>
+    <div className="calendar-container" onClick={() => {
+      setDayDetailView(null);
+      setSelectedDay(null);
+    }}>
       <h1>RA Duty Calendar</h1>
       
       <div className="controls">
@@ -627,7 +690,8 @@ const Calendar = () => {
           className="filter-input"
         />
         <button 
-          onClick={() => {
+          onClick={(e) => {
+            e.stopPropagation();
             setShowAddForm(true);
             setSelectedDay(null);
           }}
@@ -638,9 +702,9 @@ const Calendar = () => {
       </div>
       
       {loading ? (
-        <div className="loading">Loading duties...</div>
+        renderLoading()
       ) : error ? (
-        <div className="error-message">{error}</div>
+        renderError()
       ) : (
         <div onClick={(e) => e.stopPropagation()}>
           {viewMode === 'calendar' ? renderCalendar() : renderListView()}

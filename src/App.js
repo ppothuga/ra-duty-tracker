@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import './App.css';
 import Calendar from './components/Calendar';
 import RAManagement from './components/RAManagement';
-import Reports from './components/Reports';
+//import Reports from './components/Reports';
 
 function App() {
   const [currentPage, setCurrentPage] = useState('calendar');
@@ -19,8 +19,6 @@ function App() {
         return <Calendar />;
       case 'ras':
         return <RAManagement />;
-      case 'reports':
-        return <Reports />;
       default:
         return <Calendar />;
     }
@@ -42,12 +40,6 @@ function App() {
             className={currentPage === 'ras' ? 'active' : ''}
           >
             RAs
-          </button>
-          <button
-            onClick={() => navigate('reports')}
-            className={currentPage === 'reports' ? 'active' : ''}
-          >
-            Reports
           </button>
         </nav>
       </header>

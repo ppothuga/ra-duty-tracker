@@ -33,7 +33,7 @@ def setup_database():
         shift TEXT NOT NULL,
         notes TEXT,
         created_at TEXT DEFAULT CURRENT_TIMESTAMP,
-        FOREIGN KEY (ra_id) REFERENCES ras (id)
+        FOREIGN KEY (ra_id) REFERENCES ras (id) ON DELETE CASCADE
     )
     ''')
     
