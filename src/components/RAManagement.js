@@ -1,124 +1,112 @@
-// src/components/RAManagement.js
 import React, { useState, useEffect } from 'react';
 import './RAManagement.css';
 
-const RAManagement = () => {
+const API_URL = 'http://127.0.0.1:5001/api/ras';
+
+const RAManagement = ({ refreshTrigger }) => {
   const [ras, setRAs] = useState([]);
-  const [formData, setFormData] = useState({ name: '', email: '', phone: '' });
+  const [formData, setFormData] = useState({ name: '', email: '' });
   const [editingRA, setEditingRA] = useState(null);
-  const [showForm, setShowForm] = useState(false);
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState(null);
+  const [loading, setLoading] = useState(true);
 
   const fetchRAs = async () => {
     try {
-      const response = await fetch('http://localhost:5001/api/ras');
-      if (!response.ok) throw new Error('Failed to fetch RAs');
-      const data = await response.json();
+      const res = await fetch(API_URL);
+      const data = await res.json();
       setRAs(data);
+      setLoading(false);
     } catch (err) {
-      setError(err.message);
+      console.error('Failed to fetch RAs:', err);
     }
   };
 
   useEffect(() => {
     fetchRAs();
-  }, []);
+  }, [refreshTrigger]); // also refetch if refreshTrigger changes
 
-  const handleInputChange = (e) => {
+  const handleChange = (e) => {
     const { name, value } = e.target;
-    setFormData({ ...formData, [name]: value });
+    setFormData(prev => ({ ...prev, [name]: value }));
   };
-
-  const handleAddNew = () => {
-    setFormData({ name: '', email: '', phone: '' });
-    setEditingRA(null);
-    setShowForm(true);
-  };
-
-  const handleEdit = (ra) => {
-    setFormData({ name: ra.name, email: ra.email, phone: ra.phone });
-    setEditingRA(ra);
-    setShowForm(true);
-  };
-
-  const handleDelete = async (id) => {
-    if (!window.confirm('Delete this RA and their duties?')) return;
-    try {
-      await fetch(`http://localhost:5001/api/ras/${id}`, { method: 'DELETE' });
-  
-      fetchRAs();
-  
-      // Optional: force-refresh the calendar if it's mounted
-      const calendarReloadEvent = new Event('calendarDataChanged');
-      window.dispatchEvent(calendarReloadEvent);
-    } catch (err) {
-      alert('Failed to delete RA');
-    }
-  };
-  
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    const method = editingRA ? 'PUT' : 'POST';
-    const url = editingRA
-      ? `http://localhost:5001/api/ras/${editingRA.id}`
-      : 'http://localhost:5001/api/ras';
-
     try {
-      await fetch(url, {
-        method,
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(formData),
-      });
-      setShowForm(false);
-      setFormData({ name: '', email: '', phone: '' });
+      if (editingRA) {
+        await fetch(`${API_URL}/${editingRA.id}`, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(formData),
+        });
+      } else {
+        await fetch(API_URL, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(formData),
+        });
+      }
+      setFormData({ name: '', email: '' });
       setEditingRA(null);
       fetchRAs();
     } catch (err) {
-      alert('Failed to save RA');
+      console.error('Failed to save RA:', err);
     }
+  };
+
+  const handleDelete = async (id) => {
+    if (!window.confirm('Are you sure you want to delete this RA?')) return;
+    try {
+      await fetch(`${API_URL}/${id}`, { method: 'DELETE' });
+      fetchRAs();
+    } catch (err) {
+      console.error('Failed to delete RA:', err);
+    }
+  };
+
+  const handleEdit = (ra) => {
+    setFormData({ name: ra.name, email: ra.email });
+    setEditingRA(ra);
   };
 
   return (
     <div className="ra-management">
-      <div className="ra-header">
-        <h2>Resident Assistants</h2>
-        <button className="add-button" onClick={handleAddNew}>Add New RA</button>
-      </div>
+      <h2>RA Management</h2>
 
-      {showForm && (
-        <div className="ra-form-container">
-          <form className="ra-form" onSubmit={handleSubmit}>
-            <h3>{editingRA ? 'Edit RA' : 'Add RA'}</h3>
-            <div className="form-group">
-              <label>Name</label>
-              <input type="text" name="name" value={formData.name} onChange={handleInputChange} required />
-            </div>
-            <div className="form-group">
-              <label>Email</label>
-              <input type="email" name="email" value={formData.email} onChange={handleInputChange} />
-            </div>
-            <div className="form-group">
-              <label>Phone</label>
-              <input type="tel" name="phone" value={formData.phone} onChange={handleInputChange} />
-            </div>
-            <div className="form-actions">
-              <button type="submit" className="save-button">Save</button>
-              <button type="button" className="cancel-button" onClick={() => setShowForm(false)}>Cancel</button>
-            </div>
-          </form>
-        </div>
-      )}
+      <form onSubmit={handleSubmit} className="ra-form">
+        <input
+          type="text"
+          name="name"
+          placeholder="RA Name"
+          value={formData.name}
+          onChange={handleChange}
+          required
+        />
+        <input
+          type="email"
+          name="email"
+          placeholder="RA Email"
+          value={formData.email}
+          onChange={handleChange}
+          required
+        />
+        <button type="submit">{editingRA ? 'Update RA' : 'Add RA'}</button>
+        {editingRA && (
+          <button type="button" onClick={() => {
+            setEditingRA(null);
+            setFormData({ name: '', email: '' });
+          }}>Cancel</button>
+        )}
+      </form>
 
-      <div className="ra-list">
+      <hr />
+
+      {loading ? <p>Loading RAs...</p> : (
         <table>
           <thead>
             <tr>
               <th>ID</th>
               <th>Name</th>
               <th>Email</th>
-              <th>Phone</th>
               <th>Actions</th>
             </tr>
           </thead>
@@ -128,16 +116,15 @@ const RAManagement = () => {
                 <td>{ra.id}</td>
                 <td>{ra.name}</td>
                 <td>{ra.email}</td>
-                <td>{ra.phone}</td>
                 <td>
-                  <button className="edit-button" onClick={() => handleEdit(ra)}>Edit</button>
-                  <button className="delete-button" onClick={() => handleDelete(ra.id)}>Delete</button>
+                  <button onClick={() => handleEdit(ra)}>Edit</button>
+                  <button onClick={() => handleDelete(ra.id)}>Delete</button>
                 </td>
               </tr>
             ))}
           </tbody>
         </table>
-      </div>
+      )}
     </div>
   );
 };

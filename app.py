@@ -3,9 +3,18 @@ from flask import Flask, request, jsonify
 from flask_cors import CORS
 import sqlite3
 from datetime import datetime
+from flask_sqlalchemy import SQLAlchemy
+from models import db, RA
+
 
 app = Flask(__name__)
+app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///ra_duty_tracker.db'
+app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
+db.init_app(app)
 CORS(app)  # Enable CORS for all routes
+
+with app.app_context():
+    db.create_all()
 
 # Database setup function
 def setup_database():
@@ -118,29 +127,40 @@ def get_duty(duty_id):
 @app.route('/api/duties', methods=['POST'])
 def add_duty():
     data = request.json
-    
-    # Validate required fields
+
     if not data.get('ra_name') or not data.get('date') or not data.get('shift'):
         return jsonify({"error": "RA name, date and shift are required"}), 400
-    
+
+    ra_name = data['ra_name'].strip()
+    if not ra_name:
+        return jsonify({"error": "RA name cannot be empty"}), 400
+
     conn = sqlite3.connect('ra_duty_tracker.db')
     cursor = conn.cursor()
-    
-    # Get ra_id from name if available, otherwise use a default
-    cursor.execute("SELECT id FROM ras WHERE name = ?", (data['ra_name'],))
-    ra_result = cursor.fetchone()
-    
-    ra_id = ra_result[0] if ra_result else 0
-    
+
+    # Check if RA exists
+    cursor.execute("SELECT id FROM ras WHERE name = ?", (ra_name,))
+    result = cursor.fetchone()
+
+    if result:
+        ra_id = result[0]
+    else:
+        # Insert new RA
+        cursor.execute(
+            "INSERT INTO ras (name, email, active) VALUES (?, ?, ?)",
+            (ra_name, "", 1)
+        )
+        ra_id = cursor.lastrowid
+
     cursor.execute(
         "INSERT INTO duties (ra_id, ra_name, date, shift, notes) VALUES (?, ?, ?, ?, ?)",
-        (ra_id, data['ra_name'], data['date'], data['shift'], data.get('notes', ''))
+        (ra_id, ra_name, data['date'], data['shift'], data.get('notes', ''))
     )
-    
+
     duty_id = cursor.lastrowid
     conn.commit()
     conn.close()
-    
+
     return jsonify({"id": duty_id, "message": "Duty added successfully"}), 201
 
 @app.route('/api/duties/<int:duty_id>', methods=['PUT'])
@@ -194,24 +214,29 @@ def delete_duty(duty_id):
     return jsonify({"message": "Duty deleted successfully"})
 
 # API Endpoints for RAs
-@app.route('/api/ras', methods=['GET'])
-def get_ras():
-    conn = sqlite3.connect('ra_duty_tracker.db')
-    conn.row_factory = sqlite3.Row
-    cursor = conn.cursor()
+
+#@app.route('/api/ras', methods=['GET'])
+#def get_ras():
+ #   conn = sqlite3.connect('ra_duty_tracker.db')
+  #  conn.row_factory = sqlite3.Row
+   # cursor = conn.cursor()
     
     # Get only active RAs by default, unless specified
-    include_inactive = request.args.get('include_inactive', 'false').lower() == 'true'
+    #include_inactive = request.args.get('include_inactive', 'false').lower() == 'true'
     
-    if include_inactive:
-        cursor.execute("SELECT * FROM ras ORDER BY name")
-    else:
-        cursor.execute("SELECT * FROM ras WHERE active = 1 ORDER BY name")
+   # if include_inactive:
+    #    cursor.execute("SELECT * FROM ras ORDER BY name")
+    #else:
+     #   cursor.execute("SELECT * FROM ras WHERE active = 1 ORDER BY name")
     
-    ras = [dict(row) for row in cursor.fetchall()]
+    #ras = [dict(row) for row in cursor.fetchall()]
     
-    conn.close()
-    return jsonify(ras)
+    #conn.close()
+    #return jsonify(ras)
+@app.route('/api/ras', methods=['GET'])
+def get_ras():
+    ras = RA.query.order_by(RA.name).all()
+    return jsonify([ra.to_dict() for ra in ras])
 
 @app.route('/api/ras/<int:ra_id>', methods=['GET'])
 def get_ra(ra_id):
@@ -229,64 +254,70 @@ def get_ra(ra_id):
     
     return jsonify(dict(ra))
 
+#@app.route('/api/ras', methods=['POST'])
+#def add_ra():
+ #   data = request.json
+  #  if not data.get('name'):
+   #     return jsonify({"error": "RA name is required"}), 400
+    #ra = RA(name=data['name'], email=data.get('email', ''))
+    #db.session.add(ra)
+    #db.session.commit()
+    #return jsonify({"id": ra.id, "message": "RA added successfully"}), 201
 @app.route('/api/ras', methods=['POST'])
 def add_ra():
     data = request.json
-    
-    # Validate required fields
     if not data.get('name'):
         return jsonify({"error": "RA name is required"}), 400
-    
-    conn = sqlite3.connect('ra_duty_tracker.db')
-    cursor = conn.cursor()
-    
-    cursor.execute(
-        "INSERT INTO ras (name, email, phone, hall, active) VALUES (?, ?, ?, ?, ?)",
-        (data['name'], data.get('email', ''), data.get('phone', ''), 
-         data.get('hall', ''), data.get('active', 1))
-    )
-    
-    ra_id = cursor.lastrowid
-    conn.commit()
-    conn.close()
-    
-    return jsonify({"id": ra_id, "message": "RA added successfully"}), 201
+    ra = RA(name=data['name'], email=data.get('email', ''))
+    db.session.add(ra)
+    db.session.commit()
+    return jsonify({"id": ra.id, "name": ra.name, "email": ra.email})
 
-@app.route('/api/ras/<int:ra_id>', methods=['PUT'])
-def update_ra(ra_id):
-    data = request.json
+
+#@app.route('/api/ras/<int:ra_id>', methods=['PUT'])
+#def update_ra(ra_id):
+ #   data = request.json
     
     # Validate required fields
-    if not data.get('name'):
-        return jsonify({"error": "RA name is required"}), 400
+  #  if not data.get('name'):
+   #     return jsonify({"error": "RA name is required"}), 400
     
-    conn = sqlite3.connect('ra_duty_tracker.db')
-    cursor = conn.cursor()
+   # conn = sqlite3.connect('ra_duty_tracker.db')
+   # cursor = conn.cursor()
     
     # Check if RA exists
-    cursor.execute("SELECT id FROM ras WHERE id = ?", (ra_id,))
-    if not cursor.fetchone():
-        conn.close()
-        return jsonify({"error": "RA not found"}), 404
+    #cursor.execute("SELECT id FROM ras WHERE id = ?", (ra_id,))
+    #if not cursor.fetchone():
+     #   conn.close()
+      #  return jsonify({"error": "RA not found"}), 404
     
-    cursor.execute(
-        "UPDATE ras SET name = ?, email = ?, phone = ?, hall = ?, active = ? WHERE id = ?",
-        (data['name'], data.get('email', ''), data.get('phone', ''), 
-         data.get('hall', ''), data.get('active', 1), ra_id)
-    )
+    #cursor.execute(
+     #   "UPDATE ras SET name = ?, email = ?, phone = ?, hall = ?, active = ? WHERE id = ?",
+      #  (data['name'], data.get('email', ''), data.get('phone', ''), 
+       #  data.get('hall', ''), data.get('active', 1), ra_id)
+    #)
     
     # If the RA name changed, update it in the duties table
-    if 'name' in data:
-        cursor.execute(
-            "UPDATE duties SET ra_name = ? WHERE ra_id = ?",
-            (data['name'], ra_id)
-        )
+    #if 'name' in data:
+     #   cursor.execute(
+      #      "UPDATE duties SET ra_name = ? WHERE ra_id = ?",
+       #     (data['name'], ra_id)
+       # )
     
-    conn.commit()
-    conn.close()
+    #conn.commit()
+    #conn.close()
     
+    #return jsonify({"message": "RA updated successfully"})
+@app.route('/api/ras/<int:ra_id>', methods=['PUT'])
+def update_ra(ra_id):
+    ra = RA.query.get(ra_id)
+    if not ra:
+        return jsonify({"error": "RA not found"}), 404
+    data = request.json
+    ra.name = data.get('name', ra.name)
+    ra.email = data.get('email', ra.email)
+    db.session.commit()
     return jsonify({"message": "RA updated successfully"})
-
 @app.route('/api/ras/<int:ra_id>', methods=['DELETE'])
 def delete_ra(ra_id):
     conn = sqlite3.connect('ra_duty_tracker.db')

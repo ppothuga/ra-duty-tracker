@@ -15,6 +15,7 @@ const AssignmentForm = ({
   const [formData, setFormData] = useState({
     date: format(selectedDate, 'yyyy-MM-dd'),
     ra_id: '',
+    ra_name: '',
     duty_type_id: '',
     day_type_id: '',
     notes: ''
@@ -25,15 +26,16 @@ const AssignmentForm = ({
       setFormData({
         date: assignment.date,
         ra_id: assignment.ra_id || '',
+        ra_name: assignment.ra_name || '',
         duty_type_id: assignment.duty_type_id,
         day_type_id: assignment.day_type_id,
         notes: assignment.notes || ''
       });
     } else {
-      // For new assignments, default to the selected date
       setFormData({
         date: format(selectedDate, 'yyyy-MM-dd'),
         ra_id: '',
+        ra_name: '',
         duty_type_id: '',
         day_type_id: '',
         notes: ''
@@ -49,9 +51,30 @@ const AssignmentForm = ({
     });
   };
 
+  const handleRASelect = (e) => {
+    const selectedId = e.target.value;
+    const selectedRA = ras.find((ra) => String(ra.id) === selectedId);
+    setFormData({
+      ...formData,
+      ra_id: selectedId,
+      ra_name: selectedRA ? selectedRA.name : ''
+    });
+  };
+
   const handleSubmit = (e) => {
     e.preventDefault();
-    onSave(formData);
+
+    // Only send the necessary data to the backend
+    const payload = {
+      ra_name: formData.ra_name,
+      date: formData.date,
+      shift: formData.shift || 'Secondary', // fallback
+      notes: formData.notes,
+      duty_type_id: formData.duty_type_id,
+      day_type_id: formData.day_type_id
+    };
+
+    onSave(payload);
   };
 
   return (
@@ -73,24 +96,25 @@ const AssignmentForm = ({
               required
             />
           </div>
-          
+
           <div className="form-group">
             <label htmlFor="ra_id">RA:</label>
             <select
               id="ra_id"
               name="ra_id"
               value={formData.ra_id}
-              onChange={handleInputChange}
+              onChange={handleRASelect}
+              required
             >
-              <option value="">-- Unassigned --</option>
+              <option value="">-- Select RA --</option>
               {ras.map(ra => (
-                <option key={ra.ra_id} value={ra.ra_id}>
+                <option key={ra.id} value={ra.id}>
                   {ra.name}
                 </option>
               ))}
             </select>
           </div>
-          
+
           <div className="form-group">
             <label htmlFor="duty_type_id">Duty Type:</label>
             <select
@@ -108,7 +132,7 @@ const AssignmentForm = ({
               ))}
             </select>
           </div>
-          
+
           <div className="form-group">
             <label htmlFor="day_type_id">Day Type:</label>
             <select
@@ -126,7 +150,7 @@ const AssignmentForm = ({
               ))}
             </select>
           </div>
-          
+
           <div className="form-group">
             <label htmlFor="notes">Notes:</label>
             <textarea
@@ -137,7 +161,7 @@ const AssignmentForm = ({
               rows="3"
             ></textarea>
           </div>
-          
+
           <div className="form-actions">
             {assignment && (
               <button type="button" className="delete-button" onClick={onDelete}>

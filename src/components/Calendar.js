@@ -23,9 +23,22 @@ const Calendar = () => {
   const [error, setError] = useState(null);
 
   // Fetch duties from the API
-  useEffect(() => {
-    fetchDuties();
-  }, [filterRA]);
+  //useEffect(() => {
+    //fetchDuties();
+  //}, [filterRA]);
+
+useEffect(() => {
+  axios.get(`${API_BASE_URL}/duties`)
+    .then(response => {
+      setDuties(response.data);
+      setLoading(false);
+    })
+    .catch(error => {
+      console.error("Failed to fetch duties:", error);
+      setError("Failed to load duties");
+      setLoading(false);
+    });
+}, []);
 
   const fetchDuties = async () => {
     try {

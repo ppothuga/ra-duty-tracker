@@ -2,25 +2,23 @@ import React, { useState } from 'react';
 import './App.css';
 import Calendar from './components/Calendar';
 import RAManagement from './components/RAManagement';
-//import Reports from './components/Reports';
 
 function App() {
   const [currentPage, setCurrentPage] = useState('calendar');
+  const [raRefreshTrigger, setRaRefreshTrigger] = useState(0);
 
-  // Navigation handler
-  const navigate = (page) => {
-    setCurrentPage(page);
+  const handleDutyAdded = () => {
+    setRaRefreshTrigger(prev => prev + 1); // this will re-trigger RA list reload
   };
 
-  // Render the current component based on state
   const renderComponent = () => {
     switch (currentPage) {
       case 'calendar':
-        return <Calendar />;
+        return <Calendar onDutyAdded={handleDutyAdded} />;
       case 'ras':
-        return <RAManagement />;
+        return <RAManagement refreshTrigger={raRefreshTrigger} />;
       default:
-        return <Calendar />;
+        return <Calendar onDutyAdded={handleDutyAdded} />;
     }
   };
 
@@ -30,13 +28,13 @@ function App() {
         <h1>RA Duty Tracker</h1>
         <nav>
           <button
-            onClick={() => navigate('calendar')}
+            onClick={() => setCurrentPage('calendar')}
             className={currentPage === 'calendar' ? 'active' : ''}
           >
             Calendar
           </button>
           <button
-            onClick={() => navigate('ras')}
+            onClick={() => setCurrentPage('ras')}
             className={currentPage === 'ras' ? 'active' : ''}
           >
             RAs
