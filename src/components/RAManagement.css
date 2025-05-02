@@ -1,43 +1,162 @@
+/* RAManagement.css */
 .ra-management {
+  max-width: 100%;
   padding: 20px;
+  background-color: #f9f9f9;
+  border-radius: 8px;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
 }
 
-.ra-form {
-  display: flex;
-  gap: 10px;
+.ra-management h2 {
+  margin-top: 0;
+  color: #333;
+  border-bottom: 1px solid #ddd;
+  padding-bottom: 10px;
   margin-bottom: 20px;
 }
 
-.ra-form input {
-  padding: 8px;
-  border: 1px solid #ccc;
-  border-radius: 4px;
+.ra-form {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 15px;
+  margin-bottom: 20px;
+  background-color: #fff;
+  padding: 15px;
+  border-radius: 6px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
 }
 
-.ra-form button {
+.form-group {
+  display: flex;
+  flex-direction: column;
+}
+
+.form-group label {
+  margin-bottom: 5px;
+  font-weight: 500;
+  color: #555;
+}
+
+.ra-form input {
   padding: 8px 12px;
-  background-color: #007bff;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  font-size: 14px;
+}
+
+.form-actions {
+  grid-column: 1 / -1;
+  display: flex;
+  gap: 10px;
+  margin-top: 10px;
+}
+
+.submit-btn, .edit-btn {
+  background-color: #4285f4;
   color: white;
   border: none;
   border-radius: 4px;
+  padding: 8px 16px;
   cursor: pointer;
+  font-weight: 500;
+  transition: background-color 0.2s;
 }
 
-table {
+.submit-btn:hover, .edit-btn:hover {
+  background-color: #3367d6;
+}
+
+.cancel-btn, .delete-btn {
+  background-color: #f44336;
+  color: white;
+  border: none;
+  border-radius: 4px;
+  padding: 8px 16px;
+  cursor: pointer;
+  font-weight: 500;
+  transition: background-color 0.2s;
+}
+
+.cancel-btn:hover, .delete-btn:hover {
+  background-color: #d32f2f;
+}
+
+.ra-filter {
+  margin-bottom: 15px;
+}
+
+.ra-filter input {
+  width: 100%;
+  padding: 8px 12px;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  font-size: 14px;
+}
+
+.ra-table {
   width: 100%;
   border-collapse: collapse;
+  margin-top: 15px;
+  background-color: #fff;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
 }
 
-table th, table td {
-  border: 1px solid #ddd;
-  padding: 10px;
+.ra-table th,
+.ra-table td {
+  padding: 12px 15px;
   text-align: left;
+  border-bottom: 1px solid #ddd;
 }
 
-table th {
+.ra-table th {
   background-color: #f4f4f4;
+  font-weight: 600;
+  color: #333;
 }
 
-button {
-  margin-right: 5px;
+.ra-table tr:last-child td {
+  border-bottom: none;
+}
+
+.ra-table tr:hover {
+  background-color: #f5f5f5;
+}
+
+.action-buttons {
+  display: flex;
+  gap: 8px;
+}
+
+.action-buttons button {
+  padding: 6px 12px;
+  font-size: 12px;
+}
+
+.loading, .no-data {
+  text-align: center;
+  padding: 20px;
+  color: #666;
+  background-color: #fff;
+  border-radius: 4px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+}
+
+.error-message {
+  background-color: #ffebee;
+  color: #c62828;
+  padding: 10px 15px;
+  border-radius: 4px;
+  margin-bottom: 15px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.error-message button {
+  background: none;
+  border: none;
+  color: #c62828;
+  cursor: pointer;
+  font-size: 16px;
+  font-weight: bold;
 }
